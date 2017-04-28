@@ -42,6 +42,7 @@ namespace DrawTextBenchmark
         //static readonly Brush TextBackgroundBrush = new SolidColorBrush(Color.FromArgb(64, 0, 0, 0));
         static readonly Brush TextForegroundBrush = Brushes.White;
         static readonly Point TextOrigin = new Point(10, 5);
+        readonly Point TextOriginGlyph;
 
         readonly GlyphTypeface glyphTypeface;
         readonly IDictionary<int, ushort> characterToGlyphMap;
@@ -63,6 +64,9 @@ namespace DrawTextBenchmark
             }
             characterToGlyphMap = glyphTypeface.CharacterToGlyphMap;
             advanceWidthsDictionary = glyphTypeface.AdvanceWidths;
+
+            double y = TextOrigin.Y + Math.Round(glyphTypeface.Baseline * FontSize);
+            TextOriginGlyph = new Point(TextOrigin.X, y);
 
             var text = Text;
             glyphIndexes = new ushort[text.Length];
@@ -170,11 +174,9 @@ namespace DrawTextBenchmark
 
                     //totalWidth += width;
                 }
-                double y = TextOrigin.Y + Math.Round(glyphTypeface.Baseline * FontSize);
-                var origin = new Point(TextOrigin.X, y);
 
                 var glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
-                    glyphIndexes, origin, advanceWidths, null, null, null, null,
+                    glyphIndexes, TextOriginGlyph, advanceWidths, null, null, null, null,
                     null, null);
                 dc.DrawGlyphRun(TextForegroundBrush, glyphRun);
             }

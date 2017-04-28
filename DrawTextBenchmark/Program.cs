@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BenchmarkDotNet.Running;
 
 namespace DrawTextBenchmark
@@ -11,7 +7,7 @@ namespace DrawTextBenchmark
     {
         static void Main(string[] args)
         {
-            //var summary = BenchmarkRunner.Run<DrawText>();
+            var summary = BenchmarkRunner.Run<DrawText>();
 
             var drawText = new DrawText();
             drawText.DrawFormattedText_Save();
