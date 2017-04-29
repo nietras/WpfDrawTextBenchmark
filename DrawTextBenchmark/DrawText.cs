@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
@@ -35,6 +37,7 @@ namespace DrawTextBenchmark
         const int Width = 1024;
         const int Height = 32;
         const string Text = "This is a test text with numbers 0123456789 and symbols .,&%#";
+        //const string Text = "T";
         const double FontSize = 16;
         static readonly CultureInfo TextCultureInfo = CultureInfo.GetCultureInfo("en-us");
         static readonly Typeface TextTypeface = new Typeface("Courier New");
@@ -65,6 +68,12 @@ namespace DrawTextBenchmark
         readonly ushort[] glyphIndexes;
         readonly double[] advanceWidths;
         readonly GlyphRun glyphRun;
+        static readonly PropertyInfo isInitializedPropertyInfo =
+            typeof(GlyphRun).GetProperty("IsInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
+        static readonly MethodInfo isInitializedSetMethod = isInitializedPropertyInfo.GetSetMethod(true);
+        readonly Action<GlyphRun, bool> setIsInitialized =
+            isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun,bool>)) as Action<GlyphRun, bool>;
+        readonly object falseObject = false;
 
         readonly DrawingVisual m_drawingVisual = new DrawingVisual();
         readonly RenderTargetBitmap m_renderBitmap = new RenderTargetBitmap(Width, Height, DPI, DPI, PixelFormats.Default);
@@ -200,6 +209,16 @@ namespace DrawTextBenchmark
                 var glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
                     glyphIndexes, TextOriginGlyph, advanceWidths, null, null, null, null,
                     null, null);
+                //setIsInitialized(glyphRun, true);
+
+                //setIsInitialized(glyphRun, false);
+                //var si = (ISupportInitialize)glyphRun;
+                //si.BeginInit();
+                //glyphRun.GlyphIndices = glyphIndexes;
+                //glyphRun.AdvanceWidths = advanceWidths;
+                //si.EndInit();
+                //setIsInitialized(glyphRun, true);
+
                 dc.DrawGlyphRun(TextForegroundBrush, glyphRun);
             }
         }
