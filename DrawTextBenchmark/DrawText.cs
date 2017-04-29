@@ -61,6 +61,7 @@ namespace DrawTextBenchmark
         readonly Dictionary<char, ushort> characterToGlyphIndex;
         readonly Dictionary<ushort, double> glyphIndexToAdvanceWidth;
         readonly Dictionary<char, GlyphInfo> characterToGlyphInfo;
+        readonly GlyphInfo[] glyphInfoTable;
         readonly ushort[] glyphIndexes;
         readonly double[] advanceWidths;
         readonly GlyphRun glyphRun;
@@ -89,6 +90,7 @@ namespace DrawTextBenchmark
             // Don't need dictionary for glyph index probably since it should be from 0-count
             glyphIndexToAdvanceWidth = new Dictionary<ushort, double>(characterCount);
             characterToGlyphInfo = new Dictionary<char, GlyphInfo>(characterCount);
+            glyphInfoTable = new GlyphInfo[char.MaxValue];
 
             foreach (var kvp in characterToGlyphMap)
             {
@@ -101,7 +103,9 @@ namespace DrawTextBenchmark
                 {
                     glyphIndexToAdvanceWidth.Add(glyphIndex, width);
                 }
+                var info = new GlyphInfo(glyphIndex, width);
                 characterToGlyphInfo.Add(c, new GlyphInfo(glyphIndex, width));
+                glyphInfoTable[c] = info;
             }
 
             double totalWidth = 0;
@@ -168,7 +172,7 @@ namespace DrawTextBenchmark
                 for (int n = 0; n < text.Length; n++)
                 {
                     var c = text[n];
-                    var info = characterToGlyphInfo[c];
+                    var info = glyphInfoTable[c]; //characterToGlyphInfo[c];
                     //ushort glyphIndex = characterToGlyphIndex[c];
                     //ushort glyphIndex;
                     //if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
