@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -36,7 +37,15 @@ namespace DrawTextBenchmark
         const float DPI = 96;
         const int Width = 1024;
         const int Height = 32;
-        const string Text = "This is a test text with numbers 0123456789 and symbols .,&%#";
+        const string Text0 = "";
+        const string Text1 = "T";
+        const string Text2 = "Th";
+        const string Text4 = "This";
+        const string Text8 = "This-is.";
+        const string TextA = "This is a test text with numbers 0123456789 and symbols .,&%#";
+        const string TextB = "This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
+        const string TextC = "This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
+        static readonly string[] Texts = new[] { Text0, Text1, Text2, Text4, Text8, TextA, TextB, TextC };
         //const string Text = "T";
         const double FontSize = 16;
         static readonly CultureInfo TextCultureInfo = CultureInfo.GetCultureInfo("en-us");
@@ -95,58 +104,54 @@ namespace DrawTextBenchmark
             double y = TextOrigin.Y + Math.Round(glyphTypeface.Baseline * FontSize);
             TextOriginGlyph = new Point(TextOrigin.X, y);
 
-            var text = Text;
-            glyphIndexes = new ushort[text.Length];
-            advanceWidths = new double[text.Length];
+            var maxLength = Texts.Max(t => t.Length);
+            glyphIndexes = new ushort[maxLength];
+            advanceWidths = new double[maxLength];
 
-            var characterCount = characterToGlyphMap.Count;
-            characterToGlyphIndex = new Dictionary<char, ushort>(characterCount);
+            //var characterCount = characterToGlyphMap.Count;
+            //characterToGlyphIndex = new Dictionary<char, ushort>(characterCount);
             // Don't need dictionary for glyph index probably since it should be from 0-count
-            glyphIndexToAdvanceWidth = new Dictionary<ushort, double>(characterCount);
-            characterToGlyphInfo = new Dictionary<char, GlyphInfo>(characterCount);
+            //glyphIndexToAdvanceWidth = new Dictionary<ushort, double>(characterCount);
+            //characterToGlyphInfo = new Dictionary<char, GlyphInfo>(characterCount);
             glyphInfoTable = new GlyphInfo[char.MaxValue];
 
             foreach (var kvp in characterToGlyphMap)
             {
                 var c = (char)kvp.Key;
                 var glyphIndex = kvp.Value;
-                characterToGlyphIndex.Add(c, glyphIndex);
 
                 double width = advanceWidthsDictionary[glyphIndex] * FontSize;
-                if (!glyphIndexToAdvanceWidth.ContainsKey(glyphIndex))
-                {
-                    glyphIndexToAdvanceWidth.Add(glyphIndex, width);
-                }
+
                 var info = new GlyphInfo(glyphIndex, width);
-                characterToGlyphInfo.Add(c, new GlyphInfo(glyphIndex, width));
+
                 glyphInfoTable[c] = info;
             }
 
-            double totalWidth = 0;
-            for (int n = 0; n < text.Length; n++)
-            {
-                var c = text[n];
-                ushort glyphIndex;
-                if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
-                {
-                    glyphIndex = characterToGlyphMap[c];
-                    characterToGlyphIndex.Add(c, glyphIndex);
-                }
-                glyphIndexes[n] = glyphIndex;
+            //double totalWidth = 0;
+            //for (int n = 0; n < text.Length; n++)
+            //{
+            //    var c = text[n];
+            //    ushort glyphIndex;
+            //    if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
+            //    {
+            //        glyphIndex = characterToGlyphMap[c];
+            //        characterToGlyphIndex.Add(c, glyphIndex);
+            //    }
+            //    glyphIndexes[n] = glyphIndex;
 
-                double width;
-                if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
-                {
-                    width = advanceWidthsDictionary[glyphIndex] * FontSize;
-                    glyphIndexToAdvanceWidth.Add(glyphIndex, width);
-                }
-                advanceWidths[n] = width;
+            //    double width;
+            //    if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
+            //    {
+            //        width = advanceWidthsDictionary[glyphIndex] * FontSize;
+            //        glyphIndexToAdvanceWidth.Add(glyphIndex, width);
+            //    }
+            //    advanceWidths[n] = width;
 
-                totalWidth += width;
-            }
-            glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
-                glyphIndexes, TextOrigin, advanceWidths, null, null, null, null,
-                null, null);
+            //    totalWidth += width;
+            //}
+            //glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
+            //    glyphIndexes, TextOrigin, advanceWidths, null, null, null, null,
+            //    null, null);
         }
 
         [Benchmark]
@@ -162,9 +167,12 @@ namespace DrawTextBenchmark
         {
             using (var dc = m_drawingVisual.RenderOpen())
             {
-                var formattedText = new FormattedText(Text, TextCultureInfo,
-                    FlowDirection.LeftToRight, TextTypeface, FontSize, TextForegroundBrush, DPI);
-                dc.DrawText(formattedText, TextOrigin);
+                foreach (var t in Texts)
+                {
+                    var formattedText = new FormattedText(t, TextCultureInfo,
+                        FlowDirection.LeftToRight, TextTypeface, FontSize, TextForegroundBrush, DPI);
+                    dc.DrawText(formattedText, TextOrigin);
+                }
             }
         }
 
@@ -176,74 +184,80 @@ namespace DrawTextBenchmark
             SaveBitmap(m_renderBitmap);
         }
 
-        [Benchmark]
-        public void DrawGlyphRun()
-        {
-            using (var dc = m_drawingVisual.RenderOpen())
-            {
-                var text = Text;
-                //double totalWidth = 0;
-                for (int n = 0; n < text.Length; n++)
-                {
-                    var c = text[n];
-                    var info = glyphInfoTable[c]; //characterToGlyphInfo[c];
-                    //ushort glyphIndex = characterToGlyphIndex[c];
-                    //ushort glyphIndex;
-                    //if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
-                    //{
-                    //    glyphIndex = characterToGlyphMap[c];
-                    //    characterToGlyphIndex.Add(c, glyphIndex);
-                    //}
-                    //glyphIndexes[n] = glyphIndex;
+        //[Benchmark]
+        //public void DrawGlyphRun()
+        //{
+        //    using (var dc = m_drawingVisual.RenderOpen())
+        //    {
+        //        foreach (var t in Texts)
+        //        {
+        //            //double totalWidth = 0;
+        //            for (int n = 0; n < text.Length; n++)
+        //            {
+        //                var c = text[n];
+        //                var info = glyphInfoTable[c]; //characterToGlyphInfo[c];
+        //                //ushort glyphIndex = characterToGlyphIndex[c];
+        //                //ushort glyphIndex;
+        //                //if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
+        //                //{
+        //                //    glyphIndex = characterToGlyphMap[c];
+        //                //    characterToGlyphIndex.Add(c, glyphIndex);
+        //                //}
+        //                //glyphIndexes[n] = glyphIndex;
 
-                    //double width = glyphIndexToAdvanceWidth[glyphIndex];
-                    //double width;
-                    //if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
-                    //{
-                    //    width = advanceWidthsDictionary[glyphIndex] * FontSize;
-                    //    glyphIndexToAdvanceWidth.Add(glyphIndex, width);
-                    //}
-                    //advanceWidths[n] = width;
+        //                //double width = glyphIndexToAdvanceWidth[glyphIndex];
+        //                //double width;
+        //                //if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
+        //                //{
+        //                //    width = advanceWidthsDictionary[glyphIndex] * FontSize;
+        //                //    glyphIndexToAdvanceWidth.Add(glyphIndex, width);
+        //                //}
+        //                //advanceWidths[n] = width;
 
-                    glyphIndexes[n] = info.Index;
-                    advanceWidths[n] = info.Width;
+        //                glyphIndexes[n] = info.Index;
+        //                advanceWidths[n] = info.Width;
 
-                    //totalWidth += width;
-                }
+        //                //totalWidth += width;
+        //            }
 
-                var glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
-                    glyphIndexes, TextOriginGlyph, advanceWidths, null, null, null, null,
-                    null, null);
-                //setIsInitialized(glyphRun, true);
+        //            var glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
+        //                glyphIndexes, TextOriginGlyph, advanceWidths, null, null, null, null,
+        //                null, null);
+        //            //setIsInitialized(glyphRun, true);
 
-                //setIsInitialized(glyphRun, false);
-                //var si = (ISupportInitialize)glyphRun;
-                //si.BeginInit();
-                //glyphRun.GlyphIndices = glyphIndexes;
-                //glyphRun.AdvanceWidths = advanceWidths;
-                //si.EndInit();
-                //setIsInitialized(glyphRun, true);
+        //            //setIsInitialized(glyphRun, false);
+        //            //var si = (ISupportInitialize)glyphRun;
+        //            //si.BeginInit();
+        //            //glyphRun.GlyphIndices = glyphIndexes;
+        //            //glyphRun.AdvanceWidths = advanceWidths;
+        //            //si.EndInit();
+        //            //setIsInitialized(glyphRun, true);
 
-                dc.DrawGlyphRun(TextForegroundBrush, glyphRun);
-            }
-        }
+        //            dc.DrawGlyphRun(TextForegroundBrush, glyphRun);
+        //        }
+        //    }
+        //}
 
         [Benchmark]
         public void FastGlyphRun()
         {
             using (var dc = m_drawingVisual.RenderOpen())
             {
-                m_fastGlyphRun.DrawText(Text, TextOrigin, TextForegroundBrush, dc);
+                foreach (var t in Texts)
+                {
+                    m_fastGlyphRun.DrawText(t, TextOrigin, TextForegroundBrush, dc);
+                }
+
             }
         }
 
-        public void DrawGlyphRun_Save()
-        {
-            m_renderBitmap.Clear();
-            DrawGlyphRun();
-            m_renderBitmap.Render(m_drawingVisual);
-            SaveBitmap(m_renderBitmap);
-        }
+        //public void DrawGlyphRun_Save()
+        //{
+        //    m_renderBitmap.Clear();
+        //    DrawGlyphRun();
+        //    m_renderBitmap.Render(m_drawingVisual);
+        //    SaveBitmap(m_renderBitmap);
+        //}
 
         public void FastGlyphRun_Save()
         {

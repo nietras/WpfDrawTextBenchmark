@@ -15,8 +15,8 @@ namespace DrawTextBenchmark
         readonly double m_baseline;
         //readonly List<ushort> m_glyphIndexes = new List<ushort>(1024);
         //readonly List<double> m_advanceWidths = new List<double>(1024);
-        readonly ushort[] m_glyphIndexes = new ushort[1024];
-        readonly double[] m_advanceWidths = new double[1024];
+        ushort[] m_glyphIndexes = new ushort[1024];
+        double[] m_advanceWidths = new double[1024];
         readonly ListWrapper<ushort> m_glyphIndexesList;
         readonly ListWrapper<double> m_advanceWidthsList;
 
@@ -50,6 +50,9 @@ namespace DrawTextBenchmark
 
         public void DrawText(string text, Point origin, Brush brush, DrawingContext dc)
         {
+            if (text.Length <= 0) { return; }
+
+            EnsureArraySize(text.Length);
             //m_glyphIndexes.Clear();
             //m_advanceWidths.Clear();
             //double totalWidth = 0;
@@ -71,12 +74,25 @@ namespace DrawTextBenchmark
             
             var fixedOrigin = new Point(origin.X, origin.Y + m_baseline);
 
+            // TODO: Figure out how to reuse the glyphrun
             var glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, DPI,
                 m_glyphIndexesList, fixedOrigin, m_advanceWidthsList, 
                 null, null, null, null,
                 null, null);
 
             dc.DrawGlyphRun(brush, glyphRun);
+        }
+
+        private void EnsureArraySize(int length)
+        {
+            if (length > m_glyphIndexes.Length)
+            {
+                var newLength = Math.Max(m_glyphIndexes.Length * 2, length);
+                m_glyphIndexes = new ushort[newLength];
+                m_advanceWidths = new double[newLength];
+                m_glyphIndexesList.SetArray(m_glyphIndexes);
+                m_advanceWidthsList.SetArray(m_advanceWidths);
+            }
         }
 
         struct GlyphInfo
@@ -111,7 +127,7 @@ namespace DrawTextBenchmark
                 Array.Copy(m_array, 0, array, arrayIndex, m_size);
             }
 
-            public void SetArray(T[] array, int size) { m_array = array; m_size = size; }
+            public void SetArray(T[] array) { m_array = array; }
             public void SetSize(int size) { m_size = size; }
 
             public bool IsReadOnly => throw new NotImplementedException();
