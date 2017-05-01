@@ -75,6 +75,8 @@ namespace DrawTextBenchmark
             isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun,bool>)) as Action<GlyphRun, bool>;
         readonly object falseObject = false;
 
+        readonly FastGlyphRunTextDrawer m_fastGlyphRun;
+
         readonly DrawingVisual m_drawingVisual = new DrawingVisual();
         readonly RenderTargetBitmap m_renderBitmap = new RenderTargetBitmap(Width, Height, DPI, DPI, PixelFormats.Default);
 
@@ -84,6 +86,9 @@ namespace DrawTextBenchmark
             {
                 throw new ArgumentException("GlyphTypeface");
             }
+
+            m_fastGlyphRun = FastGlyphRunTextDrawer.Create(glyphTypeface, FontSize);
+
             characterToGlyphMap = glyphTypeface.CharacterToGlyphMap;
             advanceWidthsDictionary = glyphTypeface.AdvanceWidths;
 
@@ -223,10 +228,27 @@ namespace DrawTextBenchmark
             }
         }
 
+        [Benchmark]
+        public void FastGlyphRun()
+        {
+            using (var dc = m_drawingVisual.RenderOpen())
+            {
+                m_fastGlyphRun.DrawText(Text, TextOrigin, TextForegroundBrush, dc);
+            }
+        }
+
         public void DrawGlyphRun_Save()
         {
             m_renderBitmap.Clear();
             DrawGlyphRun();
+            m_renderBitmap.Render(m_drawingVisual);
+            SaveBitmap(m_renderBitmap);
+        }
+
+        public void FastGlyphRun_Save()
+        {
+            m_renderBitmap.Clear();
+            FastGlyphRun();
             m_renderBitmap.Render(m_drawingVisual);
             SaveBitmap(m_renderBitmap);
         }
