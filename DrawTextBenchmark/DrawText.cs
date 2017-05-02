@@ -27,7 +27,7 @@ namespace DrawTextBenchmark
                 Add(new MemoryDiagnoser());
                 Add(Job.Default
                     .WithLaunchCount(1)     // benchmark process will be launched only once
-                    .WithIterationTime(TimeInterval.FromMilliseconds(100)) // 100ms per iteration
+                    .WithIterationTime(TimeInterval.FromMilliseconds(150)) // 100ms per iteration
                     .WithWarmupCount(3)
                     .WithTargetCount(10)
                 );
@@ -56,34 +56,8 @@ namespace DrawTextBenchmark
         static readonly Point TextOrigin = new Point(10, 5);
         readonly Point TextOriginGlyph;
 
-        readonly GlyphTypeface glyphTypeface;
-        readonly IDictionary<int, ushort> characterToGlyphMap;
-        readonly IDictionary<ushort, double> advanceWidthsDictionary;
-        struct GlyphInfo
-        {
-            public readonly ushort Index;
-            public readonly double Width; // Pre-computed with font size for now
-
-            public GlyphInfo(ushort glyphIndex, double width) : this()
-            {
-                Index = glyphIndex;
-                Width = width;
-            }
-        }
-        readonly Dictionary<char, ushort> characterToGlyphIndex;
-        readonly Dictionary<ushort, double> glyphIndexToAdvanceWidth;
-        readonly Dictionary<char, GlyphInfo> characterToGlyphInfo;
-        readonly GlyphInfo[] glyphInfoTable;
-        readonly ushort[] glyphIndexes;
-        readonly double[] advanceWidths;
-        readonly GlyphRun glyphRun;
-        static readonly PropertyInfo isInitializedPropertyInfo =
-            typeof(GlyphRun).GetProperty("IsInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
-        static readonly MethodInfo isInitializedSetMethod = isInitializedPropertyInfo.GetSetMethod(true);
-        readonly Action<GlyphRun, bool> setIsInitialized =
-            isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun,bool>)) as Action<GlyphRun, bool>;
-        readonly object falseObject = false;
-
+        readonly FormattedTextDrawer m_formattedText;
+        readonly NaiveGlyphRunTextDrawer m_naiveGlyphRun;
         readonly FastGlyphRunTextDrawer m_fastGlyphRun;
 
         readonly DrawingVisual m_drawingVisual = new DrawingVisual();
@@ -91,67 +65,18 @@ namespace DrawTextBenchmark
 
         public DrawText()
         {
+            GlyphTypeface glyphTypeface;
             if (!TextTypeface.TryGetGlyphTypeface(out glyphTypeface))
             {
                 throw new ArgumentException("GlyphTypeface");
             }
 
+            m_formattedText = new FormattedTextDrawer(TextTypeface, TextCultureInfo, FontSize);
+            m_naiveGlyphRun = new NaiveGlyphRunTextDrawer(glyphTypeface, FontSize);
             m_fastGlyphRun = FastGlyphRunTextDrawer.Create(glyphTypeface, FontSize);
-
-            characterToGlyphMap = glyphTypeface.CharacterToGlyphMap;
-            advanceWidthsDictionary = glyphTypeface.AdvanceWidths;
 
             double y = TextOrigin.Y + Math.Round(glyphTypeface.Baseline * FontSize);
             TextOriginGlyph = new Point(TextOrigin.X, y);
-
-            var maxLength = Texts.Max(t => t.Length);
-            glyphIndexes = new ushort[maxLength];
-            advanceWidths = new double[maxLength];
-
-            //var characterCount = characterToGlyphMap.Count;
-            //characterToGlyphIndex = new Dictionary<char, ushort>(characterCount);
-            // Don't need dictionary for glyph index probably since it should be from 0-count
-            //glyphIndexToAdvanceWidth = new Dictionary<ushort, double>(characterCount);
-            //characterToGlyphInfo = new Dictionary<char, GlyphInfo>(characterCount);
-            glyphInfoTable = new GlyphInfo[char.MaxValue];
-
-            foreach (var kvp in characterToGlyphMap)
-            {
-                var c = (char)kvp.Key;
-                var glyphIndex = kvp.Value;
-
-                double width = advanceWidthsDictionary[glyphIndex] * FontSize;
-
-                var info = new GlyphInfo(glyphIndex, width);
-
-                glyphInfoTable[c] = info;
-            }
-
-            //double totalWidth = 0;
-            //for (int n = 0; n < text.Length; n++)
-            //{
-            //    var c = text[n];
-            //    ushort glyphIndex;
-            //    if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
-            //    {
-            //        glyphIndex = characterToGlyphMap[c];
-            //        characterToGlyphIndex.Add(c, glyphIndex);
-            //    }
-            //    glyphIndexes[n] = glyphIndex;
-
-            //    double width;
-            //    if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
-            //    {
-            //        width = advanceWidthsDictionary[glyphIndex] * FontSize;
-            //        glyphIndexToAdvanceWidth.Add(glyphIndex, width);
-            //    }
-            //    advanceWidths[n] = width;
-
-            //    totalWidth += width;
-            //}
-            //glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
-            //    glyphIndexes, TextOrigin, advanceWidths, null, null, null, null,
-            //    null, null);
         }
 
         [Benchmark]
@@ -163,80 +88,45 @@ namespace DrawTextBenchmark
         }
 
         [Benchmark(Baseline = true)]
-        public void DrawFormattedText()
+        public void FormattedText()
         {
             using (var dc = m_drawingVisual.RenderOpen())
             {
                 foreach (var t in Texts)
                 {
-                    var formattedText = new FormattedText(t, TextCultureInfo,
-                        FlowDirection.LeftToRight, TextTypeface, FontSize, TextForegroundBrush, DPI);
-                    dc.DrawText(formattedText, TextOrigin);
+                    m_formattedText.DrawText(t, TextOrigin, TextForegroundBrush, dc);
                 }
             }
         }
 
-        public void DrawFormattedText_Save()
+        public void FormattedText_Save()
         {
             m_renderBitmap.Clear();
-            DrawFormattedText();
+            FormattedText();
             m_renderBitmap.Render(m_drawingVisual);
             SaveBitmap(m_renderBitmap);
         }
 
-        //[Benchmark]
-        //public void DrawGlyphRun()
-        //{
-        //    using (var dc = m_drawingVisual.RenderOpen())
-        //    {
-        //        foreach (var t in Texts)
-        //        {
-        //            //double totalWidth = 0;
-        //            for (int n = 0; n < text.Length; n++)
-        //            {
-        //                var c = text[n];
-        //                var info = glyphInfoTable[c]; //characterToGlyphInfo[c];
-        //                //ushort glyphIndex = characterToGlyphIndex[c];
-        //                //ushort glyphIndex;
-        //                //if (!characterToGlyphIndex.TryGetValue(c, out glyphIndex))
-        //                //{
-        //                //    glyphIndex = characterToGlyphMap[c];
-        //                //    characterToGlyphIndex.Add(c, glyphIndex);
-        //                //}
-        //                //glyphIndexes[n] = glyphIndex;
+        [Benchmark]
+        public void NaiveGlyphRun()
+        {
+            using (var dc = m_drawingVisual.RenderOpen())
+            {
+                foreach (var t in Texts)
+                {
+                    m_naiveGlyphRun.DrawText(t, TextOrigin, TextForegroundBrush, dc);
+                }
 
-        //                //double width = glyphIndexToAdvanceWidth[glyphIndex];
-        //                //double width;
-        //                //if (!glyphIndexToAdvanceWidth.TryGetValue(glyphIndex, out width))
-        //                //{
-        //                //    width = advanceWidthsDictionary[glyphIndex] * FontSize;
-        //                //    glyphIndexToAdvanceWidth.Add(glyphIndex, width);
-        //                //}
-        //                //advanceWidths[n] = width;
+            }
+        }
 
-        //                glyphIndexes[n] = info.Index;
-        //                advanceWidths[n] = info.Width;
-
-        //                //totalWidth += width;
-        //            }
-
-        //            var glyphRun = new GlyphRun(glyphTypeface, 0, false, FontSize, DPI,
-        //                glyphIndexes, TextOriginGlyph, advanceWidths, null, null, null, null,
-        //                null, null);
-        //            //setIsInitialized(glyphRun, true);
-
-        //            //setIsInitialized(glyphRun, false);
-        //            //var si = (ISupportInitialize)glyphRun;
-        //            //si.BeginInit();
-        //            //glyphRun.GlyphIndices = glyphIndexes;
-        //            //glyphRun.AdvanceWidths = advanceWidths;
-        //            //si.EndInit();
-        //            //setIsInitialized(glyphRun, true);
-
-        //            dc.DrawGlyphRun(TextForegroundBrush, glyphRun);
-        //        }
-        //    }
-        //}
+        public void NaiveGlyphRun_Save()
+        {
+            m_renderBitmap.Clear();
+            NaiveGlyphRun();
+            m_renderBitmap.Render(m_drawingVisual);
+            SaveBitmap(m_renderBitmap);
+        }
 
         [Benchmark]
         public void FastGlyphRun()
@@ -247,17 +137,8 @@ namespace DrawTextBenchmark
                 {
                     m_fastGlyphRun.DrawText(t, TextOrigin, TextForegroundBrush, dc);
                 }
-
             }
         }
-
-        //public void DrawGlyphRun_Save()
-        //{
-        //    m_renderBitmap.Clear();
-        //    DrawGlyphRun();
-        //    m_renderBitmap.Render(m_drawingVisual);
-        //    SaveBitmap(m_renderBitmap);
-        //}
 
         public void FastGlyphRun_Save()
         {

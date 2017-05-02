@@ -1,36 +1,25 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 
 namespace DrawTextBenchmark
 {
-    public sealed class FastGlyphRunTextDrawer
+    public sealed class NaiveGlyphRunTextDrawer
     {
-        static readonly PropertyInfo isInitializedPropertyInfo =
-            typeof(GlyphRun).GetProperty("IsInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
-        static readonly MethodInfo isInitializedSetMethod = isInitializedPropertyInfo.GetSetMethod(true);
-        readonly Action<GlyphRun, bool> setIsInitialized =
-            isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun, bool>)) as Action<GlyphRun, bool>;
-        //readonly GlyphRun glyphRun;
-
         const float DPI = 96;
         readonly GlyphTypeface m_typeface;
-        readonly GlyphInfo[] m_glyphInfoTable;
         readonly double m_fontSize;
         readonly double m_baseline;
         ushort[] m_glyphIndexes = new ushort[1024];
         double[] m_advanceWidths = new double[1024];
         readonly ListWrapper<ushort> m_glyphIndexesList;
         readonly ListWrapper<double> m_advanceWidthsList;
-
-
-        private FastGlyphRunTextDrawer(GlyphTypeface typeface, GlyphInfo[] glyphInfoTable, double fontSize)
+        
+        public NaiveGlyphRunTextDrawer(GlyphTypeface typeface, double fontSize)
         {
             m_typeface = typeface;
-            m_glyphInfoTable = glyphInfoTable;
             m_fontSize = fontSize;
             // Round to ensure baseline is in whole "pixels" as otherwise drawing is offset
             m_baseline = Math.Round(typeface.Baseline * fontSize);
@@ -38,42 +27,28 @@ namespace DrawTextBenchmark
             m_advanceWidthsList = new ListWrapper<double>(m_advanceWidths, 0);
         }
 
-        public static FastGlyphRunTextDrawer Create(GlyphTypeface typeface, double fontSize)
-        {
-            var characterToGlyphMap = typeface.CharacterToGlyphMap;
-            var advanceWidthsDictionary = typeface.AdvanceWidths;
-
-            var glyphInfoTable = new GlyphInfo[char.MaxValue];
-            foreach (var kvp in characterToGlyphMap)
-            {
-                var c = (char)kvp.Key;
-                var glyphIndex = kvp.Value;
-                double width = advanceWidthsDictionary[glyphIndex] * fontSize;
-                var info = new GlyphInfo(glyphIndex, width);
-                glyphInfoTable[c] = info;
-            }
-            return new FastGlyphRunTextDrawer(typeface, glyphInfoTable, fontSize);
-        }
-
         public void DrawText(string text, Point origin, Brush brush, DrawingContext dc)
         {
             if (text.Length <= 0) { return; }
+
+            var characterToGlyphMap = m_typeface.CharacterToGlyphMap;
+            var advanceWidths = m_typeface.AdvanceWidths;
 
             EnsureArraySize(text.Length);
             for (int i = 0; i < text.Length; i++)
             {
                 var c = text[i];
-                var info = m_glyphInfoTable[c];
+                var index = characterToGlyphMap[c];
+                var width = advanceWidths[index] * m_fontSize;
 
-                m_glyphIndexes[i] = info.Index;
-                m_advanceWidths[i] = info.Width;
+                m_glyphIndexes[i] = index;
+                m_advanceWidths[i] = width;
             }
             m_glyphIndexesList.SetSize(text.Length);
             m_advanceWidthsList.SetSize(text.Length);
             
             var fixedOrigin = new Point(origin.X, origin.Y + m_baseline);
 
-            // TODO: Figure out how to reuse the glyphrun
             var glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, DPI,
                 m_glyphIndexesList, fixedOrigin, m_advanceWidthsList, 
                 null, null, null, null,
