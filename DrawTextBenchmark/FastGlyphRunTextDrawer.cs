@@ -9,12 +9,18 @@ namespace DrawTextBenchmark
 {
     public sealed class FastGlyphRunTextDrawer
     {
+        static readonly PropertyInfo isInitializingPropertyInfo =
+            typeof(GlyphRun).GetProperty("IsInitializing", BindingFlags.Instance | BindingFlags.NonPublic);
+        static readonly MethodInfo isInitializingSetMethod = isInitializingPropertyInfo.GetSetMethod(true);
+        readonly Action<GlyphRun, bool> setIsInitializing =
+            isInitializingSetMethod.CreateDelegate(typeof(Action<GlyphRun, bool>)) as Action<GlyphRun, bool>;
+
         static readonly PropertyInfo isInitializedPropertyInfo =
             typeof(GlyphRun).GetProperty("IsInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
         static readonly MethodInfo isInitializedSetMethod = isInitializedPropertyInfo.GetSetMethod(true);
         readonly Action<GlyphRun, bool> setIsInitialized =
             isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun, bool>)) as Action<GlyphRun, bool>;
-        //readonly GlyphRun glyphRun;
+        readonly GlyphRun m_glyphRun;
 
         const float DPI = 96;
         readonly GlyphTypeface m_typeface;
@@ -34,8 +40,13 @@ namespace DrawTextBenchmark
             m_fontSize = fontSize;
             // Round to ensure baseline is in whole "pixels" as otherwise drawing is offset
             m_baseline = Math.Round(typeface.Baseline * fontSize);
-            m_glyphIndexesList = new ListWrapper<ushort>(m_glyphIndexes, 0);
-            m_advanceWidthsList = new ListWrapper<double>(m_advanceWidths, 0);
+            m_glyphIndexesList = new ListWrapper<ushort>(m_glyphIndexes, 1); // Setting size to 1 for glyphrun reuse
+            m_advanceWidthsList = new ListWrapper<double>(m_advanceWidths, 1); // Setting size to 1 for glyphrun reuse
+
+            m_glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, DPI,
+                m_glyphIndexesList, new Point(0,0), m_advanceWidthsList,
+                null, null, null, null,
+                null, null);
         }
 
         public static FastGlyphRunTextDrawer Create(GlyphTypeface typeface, double fontSize)
@@ -73,11 +84,12 @@ namespace DrawTextBenchmark
             
             var fixedOrigin = new Point(origin.X, origin.Y + m_baseline);
 
-            // TODO: Figure out how to reuse the glyphrun
-            var glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, DPI,
-                m_glyphIndexesList, fixedOrigin, m_advanceWidthsList, 
-                null, null, null, null,
-                null, null);
+            var glyphRun = m_glyphRun;
+            setIsInitialized(glyphRun, false);
+            setIsInitializing(glyphRun, true);
+            glyphRun.BaselineOrigin = fixedOrigin;
+            setIsInitializing(glyphRun, false);
+            setIsInitialized(glyphRun, true);
 
             dc.DrawGlyphRun(brush, glyphRun);
         }

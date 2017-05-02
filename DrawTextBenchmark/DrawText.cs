@@ -18,7 +18,7 @@ using BenchmarkDotNet.Jobs;
 namespace DrawTextBenchmark
 {
     [Config(typeof(FastAndDirtyConfig))]
-    public class DrawText
+    public class DrawTextBenchmark
     {
         public class FastAndDirtyConfig : ManualConfig
         {
@@ -63,7 +63,7 @@ namespace DrawTextBenchmark
         readonly DrawingVisual m_drawingVisual = new DrawingVisual();
         readonly RenderTargetBitmap m_renderBitmap = new RenderTargetBitmap(Width, Height, DPI, DPI, PixelFormats.Default);
 
-        public DrawText()
+        public DrawTextBenchmark()
         {
             GlyphTypeface glyphTypeface;
             if (!TextTypeface.TryGetGlyphTypeface(out glyphTypeface))

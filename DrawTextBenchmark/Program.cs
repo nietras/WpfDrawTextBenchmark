@@ -7,9 +7,12 @@ namespace DrawTextBenchmark
     {
         static void Main(string[] args)
         {
-            var summary = BenchmarkRunner.Run<DrawText>();
+            var summary = BenchmarkRunner.Run<DrawTextBenchmark>();
 
-            var drawText = new DrawText();
+            var drawText = new DrawTextBenchmark();
+            drawText.FormattedText();
+            drawText.NaiveGlyphRun();
+            drawText.FastGlyphRun();
             drawText.FormattedText_Save();
             drawText.NaiveGlyphRun_Save();
             drawText.FastGlyphRun_Save();
