@@ -42,9 +42,9 @@ namespace DrawTextBenchmark
         const string Text2 = "Th";
         const string Text4 = "This";
         const string Text8 = "This-is.";
-        const string TextA = "This is a test text with numbers 0123456789 and symbols .,&%#";
-        const string TextB = "This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
-        const string TextC = "This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
+        const string TextA = "This is a test.text with numbers 0123456789 and symbols .,&%#";
+        const string TextB = "This is a test-text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
+        const string TextC = "This is a test|text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#This is a test text with numbers 0123456789 and symbols .,&%#";
         static readonly string[] Texts = new[] { Text0, Text1, Text2, Text4, Text8, TextA, TextB, TextC };
         //const string Text = "T";
         const double FontSize = 16;
@@ -73,7 +73,7 @@ namespace DrawTextBenchmark
 
             m_formattedText = new FormattedTextDrawer(TextTypeface, TextCultureInfo, FontSize);
             m_naiveGlyphRun = new NaiveGlyphRunTextDrawer(glyphTypeface, FontSize);
-            m_fastGlyphRun = FastGlyphRunTextDrawer.Create(glyphTypeface, FontSize);
+            m_fastGlyphRun = FastGlyphRunTextDrawer.Create(glyphTypeface, FontSize, DPI);
 
             double y = TextOrigin.Y + Math.Round(glyphTypeface.Baseline * FontSize);
             TextOriginGlyph = new Point(TextOrigin.X, y);

@@ -22,7 +22,6 @@ namespace DrawTextBenchmark
             isInitializedSetMethod.CreateDelegate(typeof(Action<GlyphRun, bool>)) as Action<GlyphRun, bool>;
         readonly GlyphRun m_glyphRun;
 
-        const float DPI = 96;
         readonly GlyphTypeface m_typeface;
         readonly GlyphInfo[] m_glyphInfoTable;
         readonly double m_fontSize;
@@ -33,7 +32,7 @@ namespace DrawTextBenchmark
         readonly ListWrapper<double> m_advanceWidthsList;
 
 
-        private FastGlyphRunTextDrawer(GlyphTypeface typeface, GlyphInfo[] glyphInfoTable, double fontSize)
+        private FastGlyphRunTextDrawer(GlyphTypeface typeface, GlyphInfo[] glyphInfoTable, double fontSize, float dpi)
         {
             m_typeface = typeface;
             m_glyphInfoTable = glyphInfoTable;
@@ -43,13 +42,13 @@ namespace DrawTextBenchmark
             m_glyphIndexesList = new ListWrapper<ushort>(m_glyphIndexes, 1); // Setting size to 1 for glyphrun reuse
             m_advanceWidthsList = new ListWrapper<double>(m_advanceWidths, 1); // Setting size to 1 for glyphrun reuse
 
-            m_glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, DPI,
+            m_glyphRun = new GlyphRun(m_typeface, 0, false, m_fontSize, dpi,
                 m_glyphIndexesList, new Point(0,0), m_advanceWidthsList,
                 null, null, null, null,
                 null, null);
         }
 
-        public static FastGlyphRunTextDrawer Create(GlyphTypeface typeface, double fontSize)
+        public static FastGlyphRunTextDrawer Create(GlyphTypeface typeface, double fontSize, float dpi)
         {
             var characterToGlyphMap = typeface.CharacterToGlyphMap;
             var advanceWidthsDictionary = typeface.AdvanceWidths;
@@ -63,7 +62,7 @@ namespace DrawTextBenchmark
                 var info = new GlyphInfo(glyphIndex, width);
                 glyphInfoTable[c] = info;
             }
-            return new FastGlyphRunTextDrawer(typeface, glyphInfoTable, fontSize);
+            return new FastGlyphRunTextDrawer(typeface, glyphInfoTable, fontSize, dpi);
         }
 
         public void DrawText(string text, Point origin, Brush brush, DrawingContext dc)
